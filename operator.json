@@ -1,0 +1,14 @@
+{
+  "name": "PS12 Image Overview",
+  "description": "View-only QC operator for visual inspection of PS12 kinase assay fluorescence images",
+  "version": "1.0.0",
+  "isWebApp": true,
+  "isViewOnly": true,
+  "entryType": "app",
+  "tags": ["pamgene", "ps12", "qc", "microscopy", "images", "workflow"],
+  "authors": ["Tercen"],
+  "urls": ["https://github.com/tercen/ps12_image_overview_operator"],
+  "serve": "build/web",
+  "properties": [],
+  "auth": [""]
+}
