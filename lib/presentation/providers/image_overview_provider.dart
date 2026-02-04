@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../../domain/services/image_service.dart';
 import '../../domain/models/image_collection.dart';
@@ -36,6 +37,14 @@ class ImageOverviewProvider with ChangeNotifier {
     );
   }
 
+  /// Get ALL unique barcodes (for grid structure - columns)
+  /// Grid always shows all barcodes, with placeholders for missing images
+  List<String> get allBarcodes => _imageCollection?.barcodes ?? [];
+
+  /// Get ALL unique wells (for grid structure - rows)
+  /// Grid always shows all wells (1-4), with placeholders for missing images
+  List<int> get allWells => _imageCollection?.wells ?? [];
+
   /// Get unique barcodes in filtered images
   List<String> get filteredBarcodes {
     if (filteredImages.isEmpty) return [];
@@ -52,11 +61,16 @@ class ImageOverviewProvider with ChangeNotifier {
     return wells;
   }
 
-  /// Get available cycles for filter dropdown
+  /// Get available cycles for filter dropdown (from ALL images)
   List<int> get availableCycles => _imageCollection?.cycles ?? [];
 
-  /// Get available exposure times for filter dropdown
+  /// Get available exposure times for filter dropdown (from ALL images)
   List<int> get availableExposureTimes => _imageCollection?.exposureTimes ?? [];
+
+  /// Fetch and convert an image on-demand (lazy loading)
+  Future<Uint8List?> fetchAndConvertImage(String imageId) {
+    return _imageService.fetchAndConvertImage(imageId);
+  }
 
   /// Load images from service
   Future<void> loadImages() async {

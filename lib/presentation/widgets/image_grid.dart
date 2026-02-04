@@ -1,13 +1,17 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/image_overview_provider.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_colors_dark.dart';
+import '../../domain/models/image_metadata.dart';
 import 'image_detail_view.dart';
 
 /// Grid layout for PamGene images (4 rows × N columns)
+///
+/// Grid structure is determined by ALL images (all barcodes × all wells).
+/// Individual cells show images if available for current filter, or placeholders.
 class ImageGrid extends StatelessWidget {
   const ImageGrid({super.key});
 
@@ -15,13 +19,14 @@ class ImageGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ImageOverviewProvider>(
       builder: (context, provider, _) {
-        final barcodes = provider.filteredBarcodes;
-        final wells = provider.filteredWells;
+        // Use ALL barcodes/wells for grid structure (not filtered)
+        final barcodes = provider.allBarcodes;
+        final wells = provider.allWells;
 
         if (barcodes.isEmpty || wells.isEmpty) {
           return Center(
             child: Text(
-              'No images match the selected filters',
+              'No images available',
               style: Theme.of(context).textTheme.bodyLarge,
             ),
           );
@@ -135,7 +140,7 @@ class ImageGrid extends StatelessWidget {
                 final barcodeIndex = cellIndex ~/ 2;
                 final barcode = barcodes[barcodeIndex];
                 final image = provider.getImageAt(barcode, well);
-                return _buildImageCell(context, image);
+                return _buildImageCell(context, provider, image);
               }),
             ],
           );
@@ -144,7 +149,11 @@ class ImageGrid extends StatelessWidget {
     );
   }
 
-  Widget _buildImageCell(BuildContext context, dynamic image) {
+  Widget _buildImageCell(
+    BuildContext context,
+    ImageOverviewProvider provider,
+    ImageMetadata? image,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDark ? AppColorsDark.border : AppColors.border;
     final bgColor = isDark ? AppColorsDark.surface : AppColors.surface;
@@ -179,14 +188,20 @@ class ImageGrid extends StatelessWidget {
           color: bgColor,
           border: Border.all(color: borderColor),
         ),
-        child: FutureBuilder<Uint8List>(
-          future: rootBundle.load(image.imagePath!).then((data) => data.buffer.asUint8List()),
+        child: FutureBuilder<Uint8List?>(
+          future: provider.fetchAndConvertImage(image.id),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              );
             }
 
-            if (snapshot.hasError || !snapshot.hasData) {
+            if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
               return const Center(
                 child: Icon(Icons.broken_image, size: 32),
               );

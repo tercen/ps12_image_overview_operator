@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import '../../domain/services/image_service.dart';
 import '../../domain/models/image_collection.dart';
@@ -8,6 +9,7 @@ import '../models/image_metadata_impl.dart';
 /// Mock implementation of ImageService using pre-converted PNG assets
 class MockImageService implements ImageService {
   final Map<String, ImageMetadata> _cache = {};
+  final Map<String, Uint8List> _bytesCache = {};
 
   MockImageService() {
     _initializeMockData();
@@ -84,5 +86,33 @@ class MockImageService implements ImageService {
   Future<Uint8List> loadImageBytes(String imagePath) async {
     final byteData = await rootBundle.load(imagePath);
     return byteData.buffer.asUint8List();
+  }
+
+  @override
+  Future<Uint8List?> fetchAndConvertImage(String imageId) async {
+    // Check bytes cache first
+    if (_bytesCache.containsKey(imageId)) {
+      return _bytesCache[imageId];
+    }
+
+    // Get metadata to find image path
+    if (!_cache.containsKey(imageId)) {
+      return null;
+    }
+
+    final metadata = _cache[imageId]!;
+    if (metadata.imagePath == null) {
+      return null;
+    }
+
+    try {
+      // Load from assets
+      final bytes = await loadImageBytes(metadata.imagePath!);
+      _bytesCache[imageId] = bytes;
+      return bytes;
+    } catch (e) {
+      print('Error loading mock image: $e');
+      return null;
+    }
   }
 }
