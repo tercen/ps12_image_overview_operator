@@ -166,8 +166,24 @@ class ImageGrid extends StatelessWidget {
           color: bgColor,
           border: Border.all(color: borderColor),
         ),
-        child: const Center(
-          child: Text('—'),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.image_not_supported_outlined,
+                size: 32,
+                color: isDark ? Colors.white38 : Colors.black26,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No image available',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: isDark ? Colors.white38 : Colors.black38,
+                    ),
+              ),
+            ],
+          ),
         ),
       );
     }
