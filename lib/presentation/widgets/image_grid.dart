@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import '../providers/image_overview_provider.dart';
 import '../../core/theme/app_spacing.dart';
@@ -170,9 +171,9 @@ class ImageGrid extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.image_not_supported_outlined,
-                size: 32,
+              FaIcon(
+                FontAwesomeIcons.image,
+                size: 28,
                 color: isDark ? Colors.white38 : Colors.black26,
               ),
               const SizedBox(height: 8),
@@ -218,8 +219,12 @@ class ImageGrid extends StatelessWidget {
             }
 
             if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-              return const Center(
-                child: Icon(Icons.broken_image, size: 32),
+              return Center(
+                child: FaIcon(
+                  FontAwesomeIcons.triangleExclamation,
+                  size: 28,
+                  color: isDark ? Colors.white38 : Colors.black26,
+                ),
               );
             }
 
