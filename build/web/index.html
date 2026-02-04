@@ -14,7 +14,8 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="/">
+  <!-- CRITICAL: This line MUST be commented for Tercen deployment -->
+  <!--<base href="/">-->
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -33,6 +34,16 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Development mode: Set Tercen credentials for localhost testing -->
+  <script>
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      const devToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3N0YWdlLnRlcmNlbi5jb20iLCJleHAiOjE3NzI3MTA1MjMsImRhdGEiOnsiZCI6IiIsInUiOiJtYXJ0aW4uZW5nbGlzaCIsImUiOjE3NzI3MTA1MjMzMTd9fQ.N1AGghB7N4Q4QJY45BhJWFSAVrpXWLZQDTRAmJ7KbW0';
+      const serviceUri = 'https://stage.tercen.com';
+      localStorage.setItem('tercen.token', devToken);
+      localStorage.setItem('tercen.serviceUri', serviceUri);
+      console.log('🔧 DEV MODE: Set Tercen credentials in localStorage');
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
