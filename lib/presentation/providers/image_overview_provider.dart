@@ -102,9 +102,9 @@ class ImageOverviewProvider with ChangeNotifier {
 
   /// Get image at specific grid position (barcode, well)
   ImageMetadata? getImageAt(String barcode, int well) {
-    return filteredImages.firstWhere(
+    final matches = filteredImages.where(
       (img) => img.barcode == barcode && img.well == well,
-      orElse: () => null as ImageMetadata,
     );
+    return matches.isEmpty ? null : matches.first;
   }
 }
