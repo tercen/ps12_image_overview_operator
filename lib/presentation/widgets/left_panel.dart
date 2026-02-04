@@ -21,6 +21,7 @@ class _LeftPanelState extends State<LeftPanel> {
   double _panelWidth = AppSpacing.panelWidth;  // Resizable: 280-400px
   bool _isCollapsed = false;
   bool _isResizing = false;
+  bool _isHoveringResize = false;
   final ScrollController _scrollController = ScrollController();
   final Map<String, GlobalKey> _sectionKeys = {
     'filters': GlobalKey(),
@@ -241,6 +242,8 @@ class _LeftPanelState extends State<LeftPanel> {
   }
 
   Widget _buildResizeHandle(BuildContext context, bool isDark) {
+    final isActive = _isResizing || _isHoveringResize;
+
     return Positioned(
       right: 0,
       top: 0,
@@ -266,15 +269,17 @@ class _LeftPanelState extends State<LeftPanel> {
         },
         child: MouseRegion(
           cursor: SystemMouseCursors.resizeColumn,
+          onEnter: (_) => setState(() => _isHoveringResize = true),
+          onExit: (_) => setState(() => _isHoveringResize = false),
           child: Container(
             width: 8,
             decoration: BoxDecoration(
               border: Border(
                 right: BorderSide(
-                  color: _isResizing
+                  color: isActive
                       ? (isDark ? AppColorsDark.primary : AppColors.primary)
                       : (isDark ? AppColorsDark.border : AppColors.border),
-                  width: _isResizing ? 2 : 1,
+                  width: isActive ? 2 : 1,
                 ),
               ),
             ),
@@ -431,7 +436,7 @@ class _LeftPanelState extends State<LeftPanel> {
               Expanded(
                 child: VersionInfo.gitVersion.isNotEmpty
                     ? InkWell(
-                        onTap: () => launchUrl(Uri.parse(VersionInfo.gitRepo)),
+                        onTap: () => launchUrl(Uri.parse(VersionInfo.versionUrl)),
                         child: Text(
                           VersionInfo.gitVersion,
                           style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -440,11 +445,15 @@ class _LeftPanelState extends State<LeftPanel> {
                               ),
                         ),
                       )
-                    : Text(
-                        'Development',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: isDark ? AppColorsDark.textMuted : AppColors.textMuted,
-                            ),
+                    : InkWell(
+                        onTap: () => launchUrl(Uri.parse(VersionInfo.gitRepo)),
+                        child: Text(
+                          'Development',
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                        ),
                       ),
               ),
             ],
