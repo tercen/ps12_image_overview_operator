@@ -22,16 +22,16 @@ class ImageMetadataImpl implements ImageMetadata {
   final int cycle;
 
   @override
-  final int exposureTime;
+  final int exposureTime;  // T value: 5, 10, 25, 50, 100 ms
+
+  @override
+  final int? imageIndex;   // I value: sequential capture number
 
   @override
   final Uint8List? bytes;
 
   @override
   final String? imagePath;
-
-  @override
-  final int? temperature;
 
   @override
   final String? dateTime;
@@ -44,9 +44,9 @@ class ImageMetadataImpl implements ImageMetadata {
     required this.field,
     required this.cycle,
     required this.exposureTime,
+    this.imageIndex,
     this.bytes,
     this.imagePath,
-    this.temperature,
     this.dateTime,
   });
 }

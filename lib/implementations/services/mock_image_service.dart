@@ -16,12 +16,12 @@ class MockImageService implements ImageService {
   void _initializeMockData() {
     // Mock data for QC grid demonstration
     // 3 barcodes × 4 wells = 12 images
-    // All at cycle P94, exposure I488, temperature T100, field F1
+    // All at cycle P94, exposure T100 (100ms), field F1
     //
-    // NOTE: For proper QC view, all images must have the SAME cycle and exposure time.
-    // This allows filtering by (cycle, exposure) to show a complete grid snapshot.
-    // Production data may have images at different exposures, but for mock demonstration,
-    // we standardize the metadata to I488 to show a complete 3×4 grid.
+    // Filename format: {barcode}_W{well}_F{field}_T{exposureTime}_P{cycle}_I{imageIndex}_A{array}
+    // - T = Exposure Time in ms (5, 10, 25, 50, 100)
+    // - P = Pump Cycle number
+    // - I = Image Index (sequential capture number)
 
     final mockImages = [
       // Barcode 641024305
@@ -46,8 +46,6 @@ class MockImageService implements ImageService {
     for (final filename in mockImages) {
       final parsed = PamGeneFilenameParser.parse(filename);
       if (parsed != null) {
-        // Standardize all images to exposure I488 for mock demonstration
-        // This ensures the complete grid displays when filtered
         _cache[filename] = ImageMetadataImpl(
           id: filename,
           filename: filename,
@@ -56,8 +54,8 @@ class MockImageService implements ImageService {
           well: parsed['well'],
           field: parsed['field'],
           cycle: parsed['pumpCycle'],
-          exposureTime: 488, // Standardized for mock
-          temperature: parsed['temperature'],
+          exposureTime: parsed['exposureTime'],  // T value: 100ms
+          imageIndex: parsed['imageIndex'],       // I value
         );
       }
     }

@@ -186,8 +186,8 @@ class TercenImageService implements ImageService {
         well: parsed['well'],
         field: parsed['field'],
         cycle: parsed['pumpCycle'],
-        exposureTime: parsed['intensity'],
-        temperature: parsed['temperature'],
+        exposureTime: parsed['exposureTime'],  // T value: 5, 10, 25, 50, 100 ms
+        imageIndex: parsed['imageIndex'],      // I value: sequential capture number
         bytes: pngBytes,
       );
     } catch (e) {

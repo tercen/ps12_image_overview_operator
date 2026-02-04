@@ -133,8 +133,6 @@ class _ImageDetailViewState extends State<ImageDetailView> {
                 _buildMetadataRow(context, 'Field', 'F${widget.image.field}'),
                 _buildMetadataRow(context, 'Cycle', 'P${widget.image.cycle}'),
                 _buildMetadataRow(context, 'Exposure Time', '${widget.image.exposureTime}ms'),
-                if (widget.image.temperature != null)
-                  _buildMetadataRow(context, 'Temperature', 'T${widget.image.temperature}'),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'Zoom: ${_scale.toStringAsFixed(1)}x',

@@ -8,9 +8,9 @@ abstract class ImageMetadata {
   int get well;
   int get field;
   int get cycle;
-  int get exposureTime;
+  int get exposureTime;      // T value: 5, 10, 25, 50, 100 ms
+  int? get imageIndex;       // I value: sequential capture number
   Uint8List? get bytes;
   String? get imagePath;
-  int? get temperature;
   String? get dateTime;
 }
