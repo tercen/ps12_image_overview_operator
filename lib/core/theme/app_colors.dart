@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 /// Reference: _local/tercen-style/claude-skills/visual/visual-style-light.md
 class AppColors {
   // Primary (Light Theme)
-  static const Color primary = Color(0xFF1E40AF);
-  static const Color primaryDarker = Color(0xFF1E3A8A);
-  static const Color primaryLighter = Color(0xFF2563EB);
-  static const Color primarySurface = Color(0xFFDBEAFE);
-  static const Color primaryBg = Color(0xFFEFF6FF);
+  static const Color primary = Color(0xFF1E40AF); // blue-800
+  static const Color primaryDarker = Color(0xFF1E3A8A); // blue-900
+  static const Color primaryLighter = Color(0xFF2563EB); // blue-600
+  static const Color primarySurface = Color(0xFFDBEAFE); // blue-100
+  static const Color primaryBg = Color(0xFFEFF6FF); // blue-50
 
   // Accent colors
   static const Color green = Color(0xFF047857);
@@ -44,5 +44,6 @@ class AppColors {
   static const Color surface = white;
   static const Color surfaceElevated = neutral50;
   static const Color background = neutral100;
-  static const Color border = neutral200;
+  static const Color border = neutral200; // subtle borders
+  static const Color borderStrong = neutral300; // standard borders
 }
