@@ -53,8 +53,18 @@ class _ImageOverviewScreenState extends State<ImageOverviewScreen> {
                     child: Consumer<ImageOverviewProvider>(
                 builder: (context, provider, _) {
                   if (provider.isLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text(
+                            provider.loadingMessage ?? 'Loading...',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
                     );
                   }
 

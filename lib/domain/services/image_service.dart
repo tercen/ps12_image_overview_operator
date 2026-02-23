@@ -9,7 +9,8 @@ abstract class ImageService {
   ///
   /// Returns an ImageCollection with metadata for all available images.
   /// The actual image bytes are loaded on-demand via [fetchAndConvertImage].
-  Future<ImageCollection> loadImages();
+  /// [onStatus] is called with human-readable progress messages during loading.
+  Future<ImageCollection> loadImages({void Function(String)? onStatus});
 
   /// Get details for a specific image
   Future<ImageMetadata> getImageDetails(String id);

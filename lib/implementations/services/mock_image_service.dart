@@ -64,7 +64,7 @@ class MockImageService implements ImageService {
   }
 
   @override
-  Future<ImageCollection> loadImages() async {
+  Future<ImageCollection> loadImages({void Function(String)? onStatus}) async {
     // Simulate realistic network delay
     await Future.delayed(const Duration(milliseconds: 500));
 

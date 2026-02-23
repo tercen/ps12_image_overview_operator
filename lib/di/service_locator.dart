@@ -12,18 +12,12 @@ final getIt = GetIt.instance;
 ///
 /// useMocks: true for mock implementation, false for real Tercen API
 void setupServiceLocator({bool useMocks = true}) {
-  // Create mock service (always needed as fallback)
-  final mockService = MockImageService();
-
   // Register services
   if (useMocks) {
-    getIt.registerSingleton<ImageService>(mockService);
+    getIt.registerSingleton<ImageService>(MockImageService());
   } else {
-    // Real Tercen service with mock fallback
     final urlParser = getIt<TercenUrlParser>();
-    getIt.registerSingleton<ImageService>(
-      TercenImageService(urlParser, mockService),
-    );
+    getIt.registerSingleton<ImageService>(TercenImageService(urlParser));
   }
 
   // Register providers (factories for new instances)

@@ -13,6 +13,7 @@ class ImageOverviewProvider with ChangeNotifier {
   ImageCollection? _imageCollection;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _loadingMessage;
 
   // Filter state
   int? _selectedCycle;
@@ -23,6 +24,7 @@ class ImageOverviewProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
+  String? get loadingMessage => _loadingMessage;
 
   int? get selectedCycle => _selectedCycle;
   int? get selectedExposureTime => _selectedExposureTime;
@@ -76,10 +78,16 @@ class ImageOverviewProvider with ChangeNotifier {
   Future<void> loadImages() async {
     _isLoading = true;
     _errorMessage = null;
+    _loadingMessage = 'Starting...';
     notifyListeners();
 
     try {
-      _imageCollection = await _imageService.loadImages();
+      _imageCollection = await _imageService.loadImages(
+        onStatus: (msg) {
+          _loadingMessage = msg;
+          notifyListeners();
+        },
+      );
 
       // Set default filters (latest cycle, longest exposure)
       _selectedCycle = _imageCollection?.defaultCycle;
@@ -91,6 +99,7 @@ class ImageOverviewProvider with ChangeNotifier {
       debugPrint('Error loading images: $e');
     } finally {
       _isLoading = false;
+      _loadingMessage = null;
       notifyListeners();
     }
   }

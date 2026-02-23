@@ -337,33 +337,39 @@ class _LeftPanelState extends State<LeftPanel> {
   Widget _buildFilterContent(BuildContext context, bool isDark) {
     return Consumer<ImageOverviewProvider>(
       builder: (context, provider, _) {
+        const decoration = InputDecoration(
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        );
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Cycle filter
-            Text(
-              'Cycle',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+            Text('Cycle', style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: AppSpacing.xs),
-            DropdownButtonFormField<int>(
-              value: provider.selectedCycle,
-              decoration: const InputDecoration(
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              items: provider.availableCycles.map((cycle) {
-                return DropdownMenuItem(
-                  value: cycle,
-                  child: Text('P$cycle'),
-                );
-              }).toList(),
-              onChanged: (value) {
-                provider.setCycle(value);
-              },
-            ),
+            provider.isLoading
+                ? DropdownButtonFormField<int>(
+                    value: null,
+                    decoration: decoration,
+                    items: const [
+                      DropdownMenuItem(
+                        value: null,
+                        child: Text('Loading data...'),
+                      ),
+                    ],
+                    onChanged: null,
+                  )
+                : DropdownButtonFormField<int>(
+                    value: provider.selectedCycle,
+                    decoration: decoration,
+                    items: provider.availableCycles.map((cycle) {
+                      return DropdownMenuItem(
+                        value: cycle,
+                        child: Text('P$cycle'),
+                      );
+                    }).toList(),
+                    onChanged: (value) => provider.setCycle(value),
+                  ),
 
             const SizedBox(height: AppSpacing.md),
 
@@ -373,25 +379,29 @@ class _LeftPanelState extends State<LeftPanel> {
               style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: AppSpacing.xs),
-            DropdownButtonFormField<int>(
-              value: provider.selectedExposureTime,
-              decoration: const InputDecoration(
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              items: provider.availableExposureTimes.map((exposure) {
-                return DropdownMenuItem(
-                  value: exposure,
-                  child: Text('${exposure}ms'),
-                );
-              }).toList(),
-              onChanged: (value) {
-                provider.setExposureTime(value);
-              },
-            ),
-
+            provider.isLoading
+                ? DropdownButtonFormField<int>(
+                    value: null,
+                    decoration: decoration,
+                    items: const [
+                      DropdownMenuItem(
+                        value: null,
+                        child: Text('Loading data...'),
+                      ),
+                    ],
+                    onChanged: null,
+                  )
+                : DropdownButtonFormField<int>(
+                    value: provider.selectedExposureTime,
+                    decoration: decoration,
+                    items: provider.availableExposureTimes.map((exposure) {
+                      return DropdownMenuItem(
+                        value: exposure,
+                        child: Text('${exposure}ms'),
+                      );
+                    }).toList(),
+                    onChanged: (value) => provider.setExposureTime(value),
+                  ),
           ],
         );
       },
