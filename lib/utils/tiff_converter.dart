@@ -203,19 +203,22 @@ class TiffConverter {
     int bitsPerSample,
   ) {
     final image = img.Image(width: width, height: height);
+    final pixelCount = width * height;
 
-    // PamGene uses 12-bit data in 16-bit container
-    // Convert to 8-bit by right-shifting 4 bits (divide by 16)
+    // Auto-scale: find the brightest pixel in this image and normalise the
+    // full range to [0, 255].  This ensures images at short exposure times
+    // (e.g. 5 ms, max raw value ~146) are visible, not just a near-black
+    // rectangle.  A minimum maxVal of 1 prevents division-by-zero for blank
+    // frames.
+    int maxVal = 1;
+    for (int i = 0; i < pixelCount; i++) {
+      if (data16[i] > maxVal) maxVal = data16[i];
+    }
+
+    final scale = 255.0 / maxVal;
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        final index = y * width + x;
-        final value16 = data16[index];
-
-        // Convert 12-bit (0-4095) to 8-bit (0-255)
-        // Right-shift by 4: value16 >> 4
-        final value8 = (value16 >> 4).clamp(0, 255);
-
-        // Set pixel (grayscale)
+        final value8 = (data16[y * width + x] * scale).round().clamp(0, 255);
         image.setPixelRgba(x, y, value8, value8, value8, 255);
       }
     }

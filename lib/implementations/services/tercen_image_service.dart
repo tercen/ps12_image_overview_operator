@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
-import 'package:flutter/foundation.dart';
 import 'package:sci_tercen_client/sci_client_service_factory.dart' as tercen;
 import '../../domain/services/image_service.dart';
 import '../../domain/models/image_collection.dart';
@@ -13,43 +12,27 @@ import '../../utils/tiff_converter.dart';
 import '../../utils/image_bytes_cache.dart';
 import '../models/image_metadata_impl.dart';
 
-// Top-level function required by compute() — decodes ZIP and extracts all file
-// bytes into a plain map that can cross isolate boundaries.
-Map<String, Uint8List> _decodeZipInIsolate(Uint8List zipBytes) {
-  final archive = ZipDecoder().decodeBytes(zipBytes);
-  final result = <String, Uint8List>{};
-  for (final file in archive.files) {
-    if (file.isFile) {
-      result[file.name] = Uint8List.fromList(file.content as List<int>);
-    }
-  }
-  return result;
-}
-
-// Top-level function required by compute() — converts a single TIFF to PNG.
-Uint8List? _convertTiffInIsolate(Uint8List tiffBytes) {
-  return TiffConverter.convertToPng(tiffBytes);
-}
-
-/// Real Tercen implementation of ImageService with lazy loading.
+/// Real Tercen implementation of ImageService with lazy per-file decompression.
 ///
-/// Features:
-/// - Lazy loading: Downloads ZIP once, extracts metadata from filenames
-/// - On-demand conversion: TIFF→PNG conversion happens when image is displayed
-/// - Caching: Stores converted PNG bytes to avoid redundant conversions
-/// - Request throttling: Limits concurrent conversions to prevent UI jank
-/// - Off-thread work: ZIP decode and TIFF conversion run via compute()
+/// Strategy:
+/// - On startup: parse the ZIP once with ZipDecoder — this reads only compressed
+///   bytes into ArchiveFile objects (no decompression yet, so startup is fast).
+/// - On demand: decompress a single TIFF only when its grid cell becomes visible,
+///   then convert to PNG and cache the result.
+/// - Between each conversion an event-loop yield allows the spinner and
+///   status text to update.
 class TercenImageService implements ImageService {
   final TercenUrlParser _urlParser;
   final ImageBytesCache _cache;
 
-  /// Decoded TIFF bytes keyed by archive entry path (filename → raw TIFF bytes)
-  Map<String, Uint8List>? _tiffBytes;
+  /// ArchiveFile objects keyed by archive entry path.
+  /// Content is NOT decompressed until explicitly accessed via file.content.
+  Map<String, ArchiveFile>? _archiveIndex;
 
-  /// Map of image ID to archive entry path
+  /// Map of image ID → archive entry path
   final Map<String, String> _imageEntryPaths = {};
 
-  /// Cached image metadata loaded on startup
+  /// Cached image metadata
   List<ImageMetadata>? _imageMetadata;
 
   /// Maximum number of concurrent image conversions
@@ -66,6 +49,8 @@ class TercenImageService implements ImageService {
   @override
   Future<ImageCollection> loadImages({void Function(String)? onStatus}) async {
     onStatus?.call('Connecting to Tercen...');
+    // Yield so the status text renders before any synchronous work begins.
+    await Future.delayed(Duration.zero);
 
     if (!_urlParser.hasValidContext && _urlParser.taskId == null) {
       throw Exception(
@@ -74,10 +59,7 @@ class TercenImageService implements ImageService {
     }
 
     print('🔍 Loading images from Tercen API...');
-    print('📋 URL Parser: $_urlParser');
 
-    // Resolve document ID
-    print('🔍 Resolving document ID...');
     final resolver = DocumentIdResolver(_urlParser);
     final resolvedIds = await resolver.resolveDocumentId();
 
@@ -87,7 +69,6 @@ class TercenImageService implements ImageService {
 
     print('✓ Resolved document ID: ${resolvedIds.documentId}');
 
-    // Download the ZIP file
     onStatus?.call('Downloading image archive...');
     final zipBytes = await _downloadZipFile(resolvedIds.documentId!);
 
@@ -99,8 +80,10 @@ class TercenImageService implements ImageService {
 
     print('✓ Downloaded ZIP file: ${zipBytes.length} bytes');
 
-    // Decode ZIP and index contents (heavy work runs in isolate)
-    onStatus?.call('Unpacking archive\u2014this may take a moment...');
+    onStatus?.call('Indexing images...');
+    // Yield so "Indexing images..." appears before the synchronous ZIP parse.
+    await Future.delayed(Duration.zero);
+
     final images = await _indexZipContents(zipBytes, onStatus: onStatus);
 
     if (images.isEmpty) {
@@ -108,7 +91,7 @@ class TercenImageService implements ImageService {
     }
 
     _imageMetadata = images;
-    print('✓ Indexed ${images.length} images (lazy loading enabled)');
+    print('✓ Indexed ${images.length} images (lazy decompression enabled)');
     return ImageCollection(images: images);
   }
 
@@ -123,17 +106,15 @@ class TercenImageService implements ImageService {
 
   @override
   Future<Uint8List?> fetchAndConvertImage(String imageId) async {
-    // Check cache first
     if (_cache.contains(imageId)) {
       return _cache.get(imageId);
     }
 
-    if (_tiffBytes == null) {
+    if (_archiveIndex == null) {
       print('⚠️ No archive loaded for image: $imageId');
       return null;
     }
 
-    // Create a completer for this conversion request
     final completer = Completer<Uint8List?>();
     final request = _ConversionRequest(imageId, completer);
 
@@ -157,8 +138,14 @@ class TercenImageService implements ImageService {
     }
   }
 
-  /// Converts a single image from TIFF to PNG in an isolate.
+  /// Decompresses a single TIFF and converts it to PNG.
+  ///
+  /// An event-loop yield before the synchronous work gives the spinner and
+  /// any pending rebuilds a chance to run between conversions.
   Future<void> _convertImage(_ConversionRequest request) async {
+    // Yield before heavy synchronous work so the UI can update.
+    await Future.delayed(Duration.zero);
+
     try {
       if (_cache.contains(request.imageId)) {
         request.completer.complete(_cache.get(request.imageId));
@@ -172,15 +159,18 @@ class TercenImageService implements ImageService {
         return;
       }
 
-      final tiffData = _tiffBytes![entryPath];
-      if (tiffData == null) {
-        print('⚠️ No TIFF bytes for entry: $entryPath');
+      final archiveFile = _archiveIndex?[entryPath];
+      if (archiveFile == null) {
+        print('⚠️ No archive entry for: $entryPath');
         request.completer.complete(null);
         return;
       }
 
-      // Run conversion in isolate to keep UI thread free
-      final pngBytes = await compute(_convertTiffInIsolate, tiffData);
+      // Lazy decompression: only this one file's compressed bytes are inflated.
+      final tiffData = Uint8List.fromList(archiveFile.content as List<int>);
+
+      // Synchronous TIFF → PNG conversion (auto-scaled brightness).
+      final pngBytes = TiffConverter.convertToPng(tiffData);
 
       if (pngBytes != null) {
         _cache.put(request.imageId, pngBytes);
@@ -196,7 +186,8 @@ class TercenImageService implements ImageService {
     }
   }
 
-  /// Downloads a ZIP file from Tercen.
+  /// Downloads the ZIP file from Tercen using efficient single-allocation
+  /// byte concatenation to avoid the intermediate List<int> expansion.
   Future<Uint8List?> _downloadZipFile(String documentId) async {
     try {
       print('🔍 Downloading ZIP file: $documentId');
@@ -204,22 +195,34 @@ class TercenImageService implements ImageService {
       final fileService = tercen.ServiceFactory().fileService;
       final stream = fileService.download(documentId);
 
-      final chunks = <List<int>>[];
+      final chunks = <Uint8List>[];
+      int totalLength = 0;
       await for (final chunk in stream) {
-        chunks.add(chunk);
+        final bytes = chunk is Uint8List ? chunk : Uint8List.fromList(chunk);
+        chunks.add(bytes);
+        totalLength += bytes.length;
       }
 
-      final bytes = Uint8List.fromList(chunks.expand((x) => x).toList());
-      print('✓ Downloaded: ${bytes.length} bytes');
+      final result = Uint8List(totalLength);
+      int offset = 0;
+      for (final chunk in chunks) {
+        result.setAll(offset, chunk);
+        offset += chunk.length;
+      }
 
-      return bytes;
+      print('✓ Downloaded: $totalLength bytes');
+      return result;
     } catch (e) {
       print('✗ Download failed: $e');
       return null;
     }
   }
 
-  /// Decodes the ZIP in an isolate, indexes contents, and creates metadata.
+  /// Parses the ZIP structure and indexes ArchiveFile objects by path.
+  ///
+  /// ZipDecoder.decodeBytes() reads only compressed bytes — it does NOT
+  /// decompress (inflate) any file content.  All decompression is deferred
+  /// until file.content is first accessed in _convertImage().
   Future<List<ImageMetadata>> _indexZipContents(
     Uint8List zipBytes, {
     void Function(String)? onStatus,
@@ -227,16 +230,25 @@ class TercenImageService implements ImageService {
     final images = <ImageMetadata>[];
 
     try {
-      print('🔍 Decoding ZIP in isolate...');
+      print('🔍 Parsing ZIP archive...');
 
-      // Heavy decompression runs off the main thread
-      _tiffBytes = await compute(_decodeZipInIsolate, zipBytes);
-      print('📋 Archive contains ${_tiffBytes!.length} files');
+      // Synchronous parse — reads headers + stores compressed bytes per entry.
+      // Does NOT decompress any TIFF data.
+      final archive = ZipDecoder().decodeBytes(zipBytes);
+      print('📋 Archive contains ${archive.files.length} entries');
 
-      onStatus?.call('Indexing images...');
+      // Build an index without decompressing (file.content is NOT called here).
+      _archiveIndex = {};
+      for (final file in archive.files) {
+        if (file.isFile) {
+          _archiveIndex![file.name] = file;
+        }
+      }
 
-      // Find TIFF files in ImageResults/ directory
-      final tiffEntries = _tiffBytes!.keys.where((name) {
+      onStatus?.call('Building image list...');
+
+      // Prefer TIFF files under ImageResults/; fall back to all TIFFs.
+      final tiffEntries = _archiveIndex!.keys.where((name) {
         final lower = name.toLowerCase();
         return (lower.contains('imageresults/') ||
                 lower.contains('imageresults\\')) &&
@@ -245,10 +257,9 @@ class TercenImageService implements ImageService {
 
       print('📋 Found ${tiffEntries.length} TIFF files in ImageResults/');
 
-      // Fall back to all TIFFs in archive if none found under ImageResults/
       final entries = tiffEntries.isNotEmpty
           ? tiffEntries
-          : _tiffBytes!.keys.where((name) {
+          : _archiveIndex!.keys.where((name) {
               final lower = name.toLowerCase();
               return lower.endsWith('.tif') || lower.endsWith('.tiff');
             }).toList();
